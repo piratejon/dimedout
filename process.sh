@@ -37,11 +37,11 @@ done < globalindex.txt >> cvt_command.sh
 echo timedout.gif >> cvt_command.sh
 . cvt_command.sh
 
-echo '[' > thumbs.json
+echo 'var thumbs = [' > thumbs.js
 ls "${undeciframes}" | while read img ; do
   convert "${undeciframes}/${img}" -resize 15% "${thumbs}/${img}"
   echo "\"${thumbs}/${img}\","
-done >> thumbs.json
-truncate -s-2 thumbs.json
-echo ']' >> thumbs.json
+done >> thumbs.js
+truncate -s-2 thumbs.js
+echo '];' >> thumbs.js
 
