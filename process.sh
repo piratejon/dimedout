@@ -6,10 +6,11 @@ deciframes=deciframes
 undeciframes=undeciframes
 unuseddeci="unused${deciframes}"
 unusedundeci="unused${undeciframes}"
+thumbs=thumbs
 
 youtube-dl 'https://www.youtube.com/watch?v=0dX6LL7b8Y0'
-mkdir -p "${deciframes}" "${undeciframes}" "${unuseddeci}" "${unusedundeci}"
-rm -rf "${deciframes}"/* "${undeciframes}"/* "${unuseddeci}"/* "${unusedundeci}"/*
+mkdir -p "${deciframes}" "${undeciframes}" "${unuseddeci}" "${unusedundeci}" "${thumbs}"
+rm -rf "${deciframes}"/* "${undeciframes}"/* "${unuseddeci}"/* "${unusedundeci}"/* "${thumbs}"/*
 ffmpeg -i "${src}" -vf mpdecimate,setpts=N/FRAME_RATE/TB "${deciframes}/%04d.jpg"
 ffmpeg -i "${src}" "${undeciframes}/%04d.jpg"
 
@@ -35,4 +36,12 @@ while read frame ; do
 done < globalindex.txt >> cvt_command.sh
 echo timedout.gif >> cvt_command.sh
 . cvt_command.sh
+
+echo '[' > thumbs.json
+ls "${undeciframes}" | while read img ; do
+  convert "${undeciframes}/${img}" -resize 15% "${thumbs}/${img}"
+  echo "\"${thumbs}/${img}\","
+done >> thumbs.json
+truncate -s-2 thumbs.json
+echo ']' >> thumbs.json
 
