@@ -39,6 +39,8 @@ init _ =
 
 type Msg
   = LoadThumbs
+    | InsertAllThumbs
+    | RemoveAllThumbs
     | InsertThumb
     | InsertThumbs
     | SelectToggle
@@ -53,10 +55,13 @@ update msg state =
       , getThumbs thumbsUrl
       )
 
+    InsertAllThumbs -> ( { state | thumbs = (setThumbsSelected state.thumbs True)}, Cmd.none )
+    RemoveAllThumbs -> ( { state | thumbs = (setThumbsSelected state.thumbs False)}, Cmd.none )
+
     SelectToggle -> ( state, Cmd.none )
     ShowMenu -> ( state, Cmd.none )
-    InsertThumb -> ( state , Cmd.none)
-    InsertThumbs -> ( state , Cmd.none)
+    InsertThumb -> ( state , Cmd.none )
+    InsertThumbs -> ( state , Cmd.none )
 
     NewThumbs result ->
       case result of
@@ -86,6 +91,10 @@ view state =
     , button [ onClick InsertThumbs ] [ text "Insert Thumbs >>" ]
     ]
   -}
+  , div [Attr.id "ctrl"]
+    [ button [ onClick InsertAllThumbs ] [ text "Insert All >>" ]
+    , button [ onClick RemoveAllThumbs ] [ text "Remove All <<" ]
+    ]
   , div [Attr.id "uls"]
     [ ul [ Attr.id "list" ] (List.map (\thumb -> li [ onClick InsertThumb, Attr.class (if thumb.selected then "sel" else "nosel") ] [ text thumb.label ]) state.thumbs)
     , ul [ Attr.id "thumbs" ] (List.map (\thumb -> li [ onClick SelectToggle, onMouseEnter ShowMenu ] (if thumb.selected then ([img [ Attr.src thumb.path ] []]) else [])) state.thumbs)
@@ -110,4 +119,8 @@ thumbNameFromPath path =
 newThumb : String -> Thumb
 newThumb path =
   {label=(thumbNameFromPath path), path=path, selected=True}
+
+setThumbsSelected : List Thumb -> Bool -> List Thumb
+setThumbsSelected thumbs selected =
+  List.map (\t -> {path=t.path, label=t.label, selected=selected}) thumbs
 
