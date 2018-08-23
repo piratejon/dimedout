@@ -1,0 +1,26 @@
+ul {
+  list-style-type: none;
+}
+
+#uls {
+  display: flex;
+}
+
+ul#list {
+  display: inline-flex;
+  flex-flow: column nowrap;
+  min-width: 8em;
+}
+
+ul#thumbs {
+  flex-grow: 1;
+  display: inline-flex;
+  flex-flow: row wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+}
+
+img {
+  display: block;
+}
+

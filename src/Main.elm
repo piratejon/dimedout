@@ -21,14 +21,19 @@ main =
     , view = view
     }
 
+type alias Thumb =
+  { path : String
+  , label : String
+  , selected : Bool
+  }
+
 type alias State =
-  { thumbs : (List String)
-  , selected : (List String)
+  { thumbs : (List Thumb)
   }
 
 init : () -> (State, Cmd Msg)
 init _ =
-  ( State ([]) ([])
+  ( State ([])
   , getThumbs thumbsUrl
   )
 
@@ -36,7 +41,7 @@ type Msg
   = LoadThumbs
     | InsertThumb
     | InsertThumbs
-    | Highlight
+    | SelectToggle
     | ShowMenu
     | NewThumbs (Result Http.Error (List String))
 
@@ -48,7 +53,7 @@ update msg state =
       , getThumbs thumbsUrl
       )
 
-    Highlight -> ( state, Cmd.none )
+    SelectToggle -> ( state, Cmd.none )
     ShowMenu -> ( state, Cmd.none )
     InsertThumb -> ( state , Cmd.none)
     InsertThumbs -> ( state , Cmd.none)
@@ -56,7 +61,7 @@ update msg state =
     NewThumbs result ->
       case result of
         Ok newThumbs ->
-          ( { state | thumbs = newThumbs }
+          ( { state | thumbs = (List.map newThumb newThumbs) }
           , Cmd.none
           )
 
@@ -72,16 +77,21 @@ subscriptions state =
 view : State -> Html Msg
 view state =
   div []
-    [ h2 [] [ text "Dimed Out Studio" ]
-    , span []
-      [ input [ Attr.placeholder "% to Load"
-              , Attr.type_ "number"
-              , Attr.size 5 ] []
-      , button [ onClick InsertThumbs ] [ text "Insert Thumbs >>" ]
-      ]
-    , ul [ Attr.id "unsel" ] (List.map (\thumb -> li [ onClick InsertThumb ] [ text thumb ]) state.thumbs)
-    , ul [ Attr.id "sel" ] (List.map (\thumb -> li [ onClick Highlight, onMouseEnter ShowMenu ] [ img [ Attr.src thumb ] [] ]) state.selected)
+  [ h2 [] [ text "Dimed Out Studio - Quilt Designer 9000 Edition" ]
+  {-
+  , span []
+    [ input [ Attr.placeholder "% to Load"
+            , Attr.type_ "number"
+            , Attr.size 5 ] []
+    , button [ onClick InsertThumbs ] [ text "Insert Thumbs >>" ]
     ]
+  -}
+  , div [Attr.id "uls"]
+    [ ul [ Attr.id "list" ] (List.map (\thumb -> li [ onClick InsertThumb, Attr.class (if thumb.selected then "sel" else "nosel") ] [ text thumb.label ]) state.thumbs)
+    , ul [ Attr.id "thumbs" ] (List.map (\thumb -> li [ onClick SelectToggle, onMouseEnter ShowMenu ] (if thumb.selected then ([img [ Attr.src thumb.path ] []]) else [])) state.thumbs)
+    ]
+  , Html.node "link" [ Attr.rel "stylesheet", Attr.href "dimedout.css" ] []
+  ]
 
 getThumbs : String -> Cmd Msg
 getThumbs file =
@@ -90,3 +100,14 @@ getThumbs file =
 thumbDecoder : Decode.Decoder (List String)
 thumbDecoder =
   Decode.list Decode.string
+
+thumbNameFromPath : String -> String
+thumbNameFromPath path =
+  case List.head (List.reverse (String.split "/" path)) of
+    Nothing -> path
+    Just name -> name
+
+newThumb : String -> Thumb
+newThumb path =
+  {label=(thumbNameFromPath path), path=path, selected=True}
+
