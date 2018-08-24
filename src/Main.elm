@@ -1,6 +1,7 @@
 module DimedOut exposing (main)
 
 import Browser
+import Regex
 import List
 import Http
 
@@ -25,15 +26,17 @@ type alias Thumb =
   { path : String
   , label : String
   , selected : Bool
+  , id : String
   }
 
 type alias State =
   { thumbs : (List Thumb)
+  , hovered : String
   }
 
 init : () -> (State, Cmd Msg)
 init _ =
-  ( State ([])
+  ( State [] ""
   , getThumbs thumbsUrl
   )
 
@@ -83,21 +86,17 @@ view : State -> Html Msg
 view state =
   div []
   [ h2 [] [ text "Dimed Out Studio - Quilt Designer 9000 Edition" ]
-  {-
-  , span []
-    [ input [ Attr.placeholder "% to Load"
-            , Attr.type_ "number"
-            , Attr.size 5 ] []
-    , button [ onClick InsertThumbs ] [ text "Insert Thumbs >>" ]
-    ]
-  -}
   , div [Attr.id "ctrl"]
     [ button [ onClick InsertAllThumbs ] [ text "Insert All >>" ]
     , button [ onClick RemoveAllThumbs ] [ text "Remove All <<" ]
     ]
   , div [Attr.id "uls"]
-    [ ul [ Attr.id "list" ] (List.map (\thumb -> li [ onClick InsertThumb, Attr.class (if thumb.selected then "sel" else "nosel") ] [ text thumb.label ]) state.thumbs)
-    , ul [ Attr.id "thumbs" ] (List.map (\thumb -> li [ onClick SelectToggle, onMouseEnter ShowMenu ] (if thumb.selected then ([img [ Attr.src thumb.path ] []]) else [])) state.thumbs)
+    [ ul [ Attr.id "list" ] (
+      List.map (\thumb -> li [ onClick InsertThumb, Attr.class (if thumb.selected then "sel" else "nosel"), Attr.id thumb.id ] [ text thumb.label ]) state.thumbs
+      )
+    , ul [ Attr.id "thumbs" ] (
+      List.map (\thumb -> li [ onClick SelectToggle, onMouseOver ShowMenu, Attr.id thumb.id ] (if thumb.selected then ([img [ Attr.src thumb.path ] []]) else [])) state.thumbs
+      )
     ]
   , Html.node "link" [ Attr.rel "stylesheet", Attr.href "dimedout.css" ] []
   ]
@@ -116,11 +115,22 @@ thumbNameFromPath path =
     Nothing -> path
     Just name -> name
 
+-- makeId = Regex.replace Regex.Any (Regex.regex "[^a-zA-Z0-9]") (\_ -> "")
+userReplace : String -> (Regex.Match -> String) -> String -> String
+userReplace userRegex replacer string =
+  case Regex.fromString userRegex of
+    Nothing -> string
+    Just regex -> Regex.replace regex replacer string
+
+makeId : String -> String
+makeId string =
+  userReplace "[^A-Za-z0-9]" (\_ -> "") string
+
 newThumb : String -> Thumb
 newThumb path =
-  {label=(thumbNameFromPath path), path=path, selected=True}
+  {label=(thumbNameFromPath path), path=path, selected=True, id=(makeId path)}
 
 setThumbsSelected : List Thumb -> Bool -> List Thumb
 setThumbsSelected thumbs selected =
-  List.map (\t -> {path=t.path, label=t.label, selected=selected}) thumbs
+  List.map (\t -> {path=t.path, label=t.label, selected=selected, id=(makeId t.path)}) thumbs
 
