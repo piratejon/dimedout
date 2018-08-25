@@ -26,7 +26,8 @@ main =
 type alias Thumb =
   { path : String
   , label : String
-  , selected : Bool
+  , selected : Bool -- if we can see the thumbnail
+  , checked : Bool -- if it is checkmarked (for mass deleting)
   , id : String
   }
 
@@ -56,9 +57,10 @@ type Msg
     | HCropDecrease
     | VCropIncrease
     | VCropDecrease
-    | DuplicateLeft String
+    | InsertLeft String
     | RemoveThumb String
-    | DuplicateRight String
+    | ToggleThumb String
+    | InsertRight String
     | NewThumbs (Result Http.Error (List String))
 
 update : Msg -> State -> (State, Cmd Msg)
@@ -98,10 +100,14 @@ update msg state =
     VCropIncrease -> ( { state | vcrop = state.vcrop + 1 }, Cmd.none)
     VCropDecrease -> ( { state | vcrop = state.vcrop - 1 }, Cmd.none)
 
-    DuplicateLeft _ -> (state, Cmd.none)
-    -- RemoveThumb -> (state | thumbs = (List.filter (\t -> ) thumbs), Cmd.none)
-    RemoveThumb _ -> (state, Cmd.none)
-    DuplicateRight _ -> (state, Cmd.none)
+    InsertLeft _ -> (state, Cmd.none)
+    RemoveThumb id ->
+      let _ = Debug.log "remove id" id in
+      ({state | thumbs = (List.filter (\t -> t.id /= id) state.thumbs) }, Cmd.none)
+    ToggleThumb id ->
+      let _ = Debug.log "toggle id" id in
+      ({state | thumbs = (List.map (\t -> if t.id == id then {t | checked = (not t.checked)} else t) state.thumbs) }, Cmd.none)
+    InsertRight _ -> (state, Cmd.none)
 
 subscriptions : State -> Sub Msg
 subscriptions state =
@@ -110,7 +116,7 @@ subscriptions state =
 view : State -> Html Msg
 view state =
   div []
-  [ h1 [] [ text "Dimed Out Studio - Quilt Designer 9000 G.O.L.D. Edition" ]
+  [ h1 [] [ text "Dimed Out Studio - Quilt Designer 9000 QDOTY Edition", em [] [text "Deluxe"] ]
   , div [Attr.id "ctrl"]
     [ button [ onClick StartOver ] [ text "Reset to Original" ]
     , button [ onClick BlankSlate ] [ text "Remove All <<" ]
@@ -149,9 +155,10 @@ view state =
               [ img [ Attr.id t.id, onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []
               , div [ Attr.id "thumbctrl" ]
                 [ span []
-                  [ span [onTargetedClick DuplicateLeft] [text "<"]
+                  [ span [onTargetedClick InsertLeft] [text "<"]
+                  , span [onTargetedClick ToggleThumb, Attr.class (if t.checked then "chk chky" else "chk chkn")] [text "✔"]
                   , span [onTargetedClick RemoveThumb] [text "X"]
-                  , span [onTargetedClick DuplicateRight] [text ">"]
+                  , span [onTargetedClick InsertRight] [text ">"]
                   ]
                 ]
               ]
@@ -194,7 +201,7 @@ makeId string =
 
 newThumb : String -> Thumb
 newThumb path =
-  {label=(thumbNameFromPath path), path=path, selected=True, id=(makeId path)}
+  {label=(thumbNameFromPath path), path=path, selected=True, id=(makeId path), checked=False}
 
 selectThumbs : List String -> List Thumb
 selectThumbs thumbs =
@@ -210,7 +217,7 @@ targetParentId =
 
 onTargetedClick : (String -> msg) -> Attribute msg
 onTargetedClick tagger =
-  on "click" (Json.map tagger targetId)
+  on "click" (Json.map tagger (Json.at ["target", "parentElement", "parentElement", "parentElement", "id"] Json.string))
 
 onTargetedMouseOver : (String -> msg) -> Attribute msg
 onTargetedMouseOver tagger =
