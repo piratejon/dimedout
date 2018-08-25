@@ -1,7 +1,5 @@
 
-ul {
-  list-style-type: none;
-}
+ul { list-style-type: none; }
 
 #uls {
   margin-top: 0.5em;
@@ -36,9 +34,23 @@ ul#thumbs {
 
 ul#thumbs > li {
   overflow: hidden;
+  position: relative;
 }
 
 img {
   display: block;
+}
+
+#thumbctrl {
+  display: block;
+  position: absolute;
+  background-color: red;
+  height: 1em;
+  top: 40%;
+  left: 30%;
+}
+
+#thumbctrl ul li {
+  display: inline;
 }
 

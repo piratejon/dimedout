@@ -51,11 +51,14 @@ type Msg
     | InsertThumb
     | InsertThumbs
     | SelectToggle
-    | ShowMenu
+    | ShowMenu String
     | HCropIncrease
     | HCropDecrease
     | VCropIncrease
     | VCropDecrease
+    | DuplicateLeft
+    | RemoveThumb
+    | DuplicateRight
     | NewThumbs (Result Http.Error (List String))
 
 update : Msg -> State -> (State, Cmd Msg)
@@ -70,7 +73,9 @@ update msg state =
     BlankSlate -> ( { state | thumbs = []}, Cmd.none )
 
     SelectToggle -> ( state, Cmd.none )
-    ShowMenu -> ( state, Cmd.none )
+    ShowMenu id ->
+      let _ = Debug.log "id" id in
+      ( { state | hovered = id }, Cmd.none )
     InsertThumb -> ( state , Cmd.none )
     InsertThumbs -> ( state , Cmd.none )
 
@@ -93,6 +98,10 @@ update msg state =
     VCropIncrease -> ( { state | vcrop = state.vcrop + 1 }, Cmd.none)
     VCropDecrease -> ( { state | vcrop = state.vcrop - 1 }, Cmd.none)
 
+    DuplicateLeft -> (state, Cmd.none)
+    RemoveThumb -> (state, Cmd.none)
+    DuplicateRight -> (state, Cmd.none)
+
 subscriptions : State -> Sub Msg
 subscriptions state =
   Sub.none
@@ -112,6 +121,7 @@ view state =
       , button [ onClick VCropDecrease ] [ text "--" ]
       , button [ onClick VCropIncrease ] [ text "++" ]
       ]
+    , text state.hovered
     ]
   , div [Attr.id "uls"]
     [ div []
@@ -119,14 +129,34 @@ view state =
       , ul [ Attr.id "list" ] (
         -- try this:
         -- https://github.com/evancz/elm-todomvc/blob/07e3d4e5259f337d5eba781319b3a916e28aca99/src/Main.elm#L242
-        List.map (\thumb -> li [ onClick InsertThumb, Attr.class (if thumb.selected then "sel" else "nosel"), Attr.id thumb.id ] [ text thumb.label ]) state.thumbs
+        List.map (\t -> li
+          [ onClick InsertThumb
+          , Attr.class (if t.selected then "sel" else "nosel")
+          , Attr.id ("thumb" ++ t.id)] [ text t.label ]) state.thumbs
         )
     ]
     , div []
       [ h2 [] [ text "Quilt" ]
       , ul [ Attr.id "thumbs" ] (
-        List.map (\thumb -> li [ onClick SelectToggle, onMouseOver ShowMenu, Attr.id thumb.id ]
-          (if thumb.selected then ([img [ Attr.src thumb.path, Attr.style "margin" (imgStyle state) ] []]) else [])) state.thumbs
+        List.map (\t -> li
+          [ onClick SelectToggle
+          -- , Attr.id ("li" ++ t.id)
+          , Attr.id (t.id)
+          , Attr.class (if state.hovered == t.id then "hovered" else "")
+          ]
+          (if t.selected && state.hovered == t.id then (
+              [ img [ Attr.id t.id, onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []
+              , div [ Attr.id "thumbctrl" ]
+                [ ul []
+                  [ li [onClick DuplicateLeft] [text "<"]
+                  , li [onClick RemoveThumb] [text "x"]
+                  , li [onClick DuplicateRight] [text ">"]
+                  ]
+                ]
+              ]
+            ) else if t.selected then ( [ img [ Attr.id ("img"++t.id), onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []]
+            ) else [])
+          ) state.thumbs
         )
       ]
     ]
@@ -169,7 +199,19 @@ selectThumbs : List String -> List Thumb
 selectThumbs thumbs =
   List.map (\t -> newThumb t) thumbs
 
+targetId : Json.Decoder String
+targetId =
+  Json.at ["target", "id"] Json.string
+
+targetParentId : Json.Decoder String
+targetParentId =
+  Json.at ["target", "parentElement", "id"] Json.string
+
+onTargetedClick : (String -> msg) -> Attribute msg
+onTargetedClick tagger =
+  on "click" (Json.map tagger targetId)
+
 onTargetedMouseOver : (String -> msg) -> Attribute msg
 onTargetedMouseOver tagger =
-  on "mouseover" (Json.map tagger targetValue)
+  on "mouseover" (Json.map tagger targetParentId)
 
