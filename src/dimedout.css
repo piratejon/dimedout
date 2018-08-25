@@ -1,12 +1,23 @@
-div#ctrl > button {
-}
 
 ul {
   list-style-type: none;
 }
 
 #uls {
+  margin-top: 0.5em;
   display: flex;
+}
+
+#uls > div {
+  border: 1px solid gray;
+}
+
+#uls h2 {
+  margin: 0;
+  text-align: center;
+  background-color: black;
+  color: white;
+  font-size: 2.5em;
 }
 
 ul#list {
