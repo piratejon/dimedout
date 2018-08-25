@@ -1,6 +1,7 @@
 module DimedOut exposing (main)
 
 import Browser
+-- import Basics
 import Regex
 import List
 import Http
@@ -33,11 +34,13 @@ type alias State =
   { thumbs : (List Thumb)
   , hovered : String
   , original : (List String)
+  , hcrop : Int
+  , vcrop : Int
   }
 
 init : () -> (State, Cmd Msg)
 init _ =
-  ( State [] "" []
+  ( State [] "" [] 0 0
   , getThumbs thumbsUrl
   )
 
@@ -49,6 +52,10 @@ type Msg
     | InsertThumbs
     | SelectToggle
     | ShowMenu
+    | HCropIncrease
+    | HCropDecrease
+    | VCropIncrease
+    | VCropDecrease
     | NewThumbs (Result Http.Error (List String))
 
 update : Msg -> State -> (State, Cmd Msg)
@@ -79,6 +86,11 @@ update msg state =
           , Cmd.none
           )
 
+    HCropIncrease -> ( { state | hcrop = state.hcrop + 1 }, Cmd.none)
+    HCropDecrease -> ( { state | hcrop = state.hcrop - 1 }, Cmd.none)
+    VCropIncrease -> ( { state | vcrop = state.vcrop + 1 }, Cmd.none)
+    VCropDecrease -> ( { state | vcrop = state.vcrop - 1 }, Cmd.none)
+
 subscriptions : State -> Sub Msg
 subscriptions state =
   Sub.none
@@ -90,6 +102,14 @@ view state =
   , div [Attr.id "ctrl"]
     [ button [ onClick StartOver ] [ text "Reset to Original" ]
     , button [ onClick BlankSlate ] [ text "Remove All <<" ]
+    , span [] [ text "hcrop"
+      , button [ onClick HCropDecrease ] [ text "--" ]
+      , button [ onClick HCropIncrease ] [ text "++" ]
+      ]
+    , span [] [ text "vcrop"
+      , button [ onClick VCropDecrease ] [ text "--" ]
+      , button [ onClick VCropIncrease ] [ text "++" ]
+      ]
     ]
   , div [Attr.id "uls"]
     [ div []
@@ -103,12 +123,18 @@ view state =
     , div []
       [ h2 [] [ text "Quilt" ]
       , ul [ Attr.id "thumbs" ] (
-        List.map (\thumb -> li [ onClick SelectToggle, onMouseOver ShowMenu, Attr.id thumb.id ] (if thumb.selected then ([img [ Attr.src thumb.path ] []]) else [])) state.thumbs
+        List.map (\thumb -> li [ onClick SelectToggle, onMouseOver ShowMenu, Attr.id thumb.id ]
+          (if thumb.selected then ([img [ Attr.src thumb.path, Attr.style "margin" (imgStyle state) ] []]) else [])) state.thumbs
         )
       ]
     ]
   , Html.node "link" [ Attr.rel "stylesheet", Attr.href "dimedout.css" ] []
   ]
+
+imgStyle : State -> String
+imgStyle s =
+  let margins = [(String.fromInt s.vcrop) ++ "px", (String.fromInt s.hcrop) ++ "px"]
+  in String.join " " (List.append margins margins)
 
 getThumbs : String -> Cmd Msg
 getThumbs file =
