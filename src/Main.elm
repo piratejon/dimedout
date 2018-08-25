@@ -56,9 +56,9 @@ type Msg
     | HCropDecrease
     | VCropIncrease
     | VCropDecrease
-    | DuplicateLeft
-    | RemoveThumb
-    | DuplicateRight
+    | DuplicateLeft String
+    | RemoveThumb String
+    | DuplicateRight String
     | NewThumbs (Result Http.Error (List String))
 
 update : Msg -> State -> (State, Cmd Msg)
@@ -98,9 +98,10 @@ update msg state =
     VCropIncrease -> ( { state | vcrop = state.vcrop + 1 }, Cmd.none)
     VCropDecrease -> ( { state | vcrop = state.vcrop - 1 }, Cmd.none)
 
-    DuplicateLeft -> (state, Cmd.none)
-    RemoveThumb -> (state, Cmd.none)
-    DuplicateRight -> (state, Cmd.none)
+    DuplicateLeft _ -> (state, Cmd.none)
+    -- RemoveThumb -> (state | thumbs = (List.filter (\t -> ) thumbs), Cmd.none)
+    RemoveThumb _ -> (state, Cmd.none)
+    DuplicateRight _ -> (state, Cmd.none)
 
 subscriptions : State -> Sub Msg
 subscriptions state =
@@ -147,10 +148,10 @@ view state =
           (if t.selected && state.hovered == t.id then (
               [ img [ Attr.id t.id, onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []
               , div [ Attr.id "thumbctrl" ]
-                [ ul []
-                  [ li [onClick DuplicateLeft] [text "<"]
-                  , li [onClick RemoveThumb] [text "x"]
-                  , li [onClick DuplicateRight] [text ">"]
+                [ span []
+                  [ span [onTargetedClick DuplicateLeft] [text "<"]
+                  , span [onTargetedClick RemoveThumb] [text "X"]
+                  , span [onTargetedClick DuplicateRight] [text ">"]
                   ]
                 ]
               ]

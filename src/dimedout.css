@@ -42,15 +42,35 @@ img {
 }
 
 #thumbctrl {
-  display: block;
   position: absolute;
-  background-color: red;
-  height: 1em;
-  top: 40%;
-  left: 30%;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
 }
 
-#thumbctrl ul li {
+#thumbctrl > span {
+  width: 100%;
+  display: inline-flex;
+  flex-flow: row nowrap;
+  position: absolute;
+  top: 50%;
+  margin-top: -1em;
+}
+
+#thumbctrl > span > span {
   display: inline;
+  font-weight: bold;
+  margin: auto;
+  padding: 0.25em 0.5em 0.25em 0.5em;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 0.5em;
+  border: 2px solid #222222;
+  transition: background-color 0.3s;
+}
+
+#thumbctrl > span > span:hover {
+  background-color: powderblue;
+  cursor: pointer;
 }
 
