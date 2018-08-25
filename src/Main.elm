@@ -86,6 +86,8 @@ update msg state =
           , Cmd.none
           )
 
+    -- todo enable/disable buttons when we are at an extreme
+    -- TODO should we just hard-code the base image dimensions or what?
     HCropIncrease -> ( { state | hcrop = state.hcrop + 1 }, Cmd.none)
     HCropDecrease -> ( { state | hcrop = state.hcrop - 1 }, Cmd.none)
     VCropIncrease -> ( { state | vcrop = state.vcrop + 1 }, Cmd.none)
@@ -133,8 +135,7 @@ view state =
 
 imgStyle : State -> String
 imgStyle s =
-  let margins = [(String.fromInt s.vcrop) ++ "px", (String.fromInt s.hcrop) ++ "px"]
-  in String.join " " (List.append margins margins)
+  (String.fromInt s.vcrop) ++ "px " ++ (String.fromInt s.hcrop) ++ "px"
 
 getThumbs : String -> Cmd Msg
 getThumbs file =
