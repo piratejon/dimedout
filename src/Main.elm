@@ -160,12 +160,11 @@ eventAncestorId n =
 generateThumbnailLI : State -> (List (Html Msg))
 generateThumbnailLI state = List.map (\t -> li
     [ onClick SelectToggle
-    -- , Attr.id ("li" ++ t.id)
-    , Attr.id (t.id)
+    , Attr.id t.id
     , Attr.class (if state.hovered == t.id then "hovered" else "")
     ]
     (if t.selected && state.hovered == t.id then (
-        [ img [ Attr.id t.id, onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []
+      [ img [ onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []
         , div [ Attr.id "thumbctrl" ]
           [ span []
             [ span [onTargetedClick InsertLeft (eventAncestorId 3)] [text "<+"]
@@ -175,7 +174,7 @@ generateThumbnailLI state = List.map (\t -> li
             ]
           ]
         ]
-        ) else if t.selected then ( [ img [ {-Attr.id ("img"++t.id),-} onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []]
+        ) else if t.selected then ( [ img [ onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []]
       ) else [])
   ) state.thumbs
 
