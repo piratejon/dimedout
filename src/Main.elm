@@ -57,6 +57,7 @@ type Msg
     | InsertThumbs
     | SelectToggle
     | ShowMenu String
+    -- | HideMenu String
     | HCropIncrease
     | HCropDecrease
     | VCropIncrease
@@ -81,7 +82,7 @@ update msg state =
 
     SelectToggle -> ( state, Cmd.none )
     ShowMenu id ->
-      -- let _ = Debug.log "id" id in
+      -- let _ = Debug.log "show id" id in
       ( { state | hovered = id }, Cmd.none )
     InsertThumb -> ( state , Cmd.none )
     InsertThumbs -> ( state , Cmd.none )
@@ -108,7 +109,7 @@ update msg state =
     InsertLeft _ -> (state, Cmd.none)
     RemoveThumb id ->
       let _ = Debug.log "remove id" id in
-      ({state | thumbs = (List.filter (\t -> t.id /= id) state.thumbs) }, Cmd.none)
+      ({state | thumbs = (List.map (\t -> if t.id == id then {t | visible = False} else t) state.thumbs) }, Cmd.none)
     ToggleThumb id ->
       let _ = Debug.log "toggle id" id in
       ({state | thumbs = (List.map (\t -> if t.id == id then {t | selected = (not t.selected)} else t) state.thumbs) }, Cmd.none)
@@ -160,17 +161,17 @@ generateThumbnailLI state = List.map (\t -> li
     , Attr.class (if state.hovered == t.id then "hovered" else "")
     ]
     (if t.visible && state.hovered == t.id then (
-      [ img [ onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []
+      [ img [ onEvent "mouseover" ShowMenu (eventAncestorId 1), Attr.src t.path, Attr.style "margin" (imgStyle state) ] []
         , div [ Attr.id "thumbctrl" ]
           [ span []
-            [ span [onTargetedClick InsertLeft (eventAncestorId 3)] [text "<+"]
-            , span [onTargetedClick ToggleThumb (eventAncestorId 3), Attr.class (if t.selected then "sel sely" else "sel seln")] [text "✔"]
-            , span [onTargetedClick RemoveThumb (eventAncestorId 3)] [text "X"]
-            , span [onTargetedClick InsertRight (eventAncestorId 3)] [text "+>"]
+            [ span [onEvent "click" InsertLeft (eventAncestorId 3)] [text "<+"]
+            , span [onEvent "click" ToggleThumb (eventAncestorId 3), Attr.class (if t.selected then "sel sely" else "sel seln")] [text "✔"]
+            , span [onEvent "click" RemoveThumb (eventAncestorId 3)] [text "X"]
+            , span [onEvent "click" InsertRight (eventAncestorId 3)] [text "+>"]
             ]
           ]
         ]
-        ) else if t.visible then ( [ img [ onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []]
+        ) else if t.visible then ( [ img [ onEvent "mouseover" ShowMenu (eventAncestorId 1), Attr.src t.path, Attr.style "margin" (imgStyle state) ] []]
       ) else [])
   ) state.thumbs
 
@@ -223,11 +224,7 @@ eventAncestorId : Int -> (List String)
 eventAncestorId n =
   ["target"] ++ (List.repeat n "parentElement") ++ ["id"]
 
-onTargetedClick : (String -> msg) -> (List String) -> Attribute msg
-onTargetedClick tagger attrs =
-  on "click" (Json.map tagger (Json.at attrs Json.string))
-
-onTargetedMouseOver : (String -> msg) -> Attribute msg
-onTargetedMouseOver tagger =
-  on "mouseover" (Json.map tagger (Json.at (eventAncestorId 1) Json.string))
+onEvent : String -> (String -> msg) -> (List String) -> Attribute msg
+onEvent event tagger attrs =
+  on event (Json.map tagger (Json.at attrs Json.string))
 
