@@ -78,7 +78,7 @@ update msg state =
 
     SelectToggle -> ( state, Cmd.none )
     ShowMenu id ->
-      let _ = Debug.log "id" id in
+      -- let _ = Debug.log "id" id in
       ( { state | hovered = id }, Cmd.none )
     InsertThumb -> ( state , Cmd.none )
     InsertThumbs -> ( state , Cmd.none )
@@ -153,6 +153,10 @@ view state =
   , Html.node "link" [ Attr.rel "stylesheet", Attr.href "dimedout.css" ] []
   ]
 
+eventAncestorId : Int -> (List String)
+eventAncestorId n =
+  ["target"] ++ (List.repeat n "parentElement") ++ ["id"]
+
 generateThumbnailLI : State -> (List (Html Msg))
 generateThumbnailLI state = List.map (\t -> li
     [ onClick SelectToggle
@@ -164,14 +168,14 @@ generateThumbnailLI state = List.map (\t -> li
         [ img [ Attr.id t.id, onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []
         , div [ Attr.id "thumbctrl" ]
           [ span []
-            [ span [onTargetedClick InsertLeft] [text "<+"]
-            , span [onTargetedClick ToggleThumb, Attr.class (if t.checked then "chk chky" else "chk chkn")] [text "✔"]
-            , span [onTargetedClick RemoveThumb] [text "X"]
-            , span [onTargetedClick InsertRight] [text "+>"]
+            [ span [onTargetedClick InsertLeft (eventAncestorId 3)] [text "<+"]
+            , span [onTargetedClick ToggleThumb (eventAncestorId 3), Attr.class (if t.checked then "chk chky" else "chk chkn")] [text "✔"]
+            , span [onTargetedClick RemoveThumb (eventAncestorId 3)] [text "X"]
+            , span [onTargetedClick InsertRight (eventAncestorId 3)] [text "+>"]
             ]
           ]
         ]
-      ) else if t.selected then ( [ img [ Attr.id ("img"++t.id), onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []]
+        ) else if t.selected then ( [ img [ {-Attr.id ("img"++t.id),-} onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []]
       ) else [])
   ) state.thumbs
 
@@ -215,15 +219,15 @@ selectThumbs thumbs =
 
 targetId : Json.Decoder String
 targetId =
-  Json.at ["target", "id"] Json.string
+  Json.at (eventAncestorId 0) Json.string
 
 targetParentId : Json.Decoder String
 targetParentId =
-  Json.at ["target", "parentElement", "id"] Json.string
+  Json.at (eventAncestorId 1) Json.string
 
-onTargetedClick : (String -> msg) -> Attribute msg
-onTargetedClick tagger =
-  on "click" (Json.map tagger (Json.at ["target", "parentElement", "parentElement", "parentElement", "id"] Json.string))
+onTargetedClick : (String -> msg) -> (List String) -> Attribute msg
+onTargetedClick tagger attrs =
+  on "click" (Json.map tagger (Json.at attrs Json.string))
 
 onTargetedMouseOver : (String -> msg) -> Attribute msg
 onTargetedMouseOver tagger =
