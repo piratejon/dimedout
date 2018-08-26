@@ -48,6 +48,7 @@ init _ =
 type Msg
   = LoadThumbs
     | StartOver
+    | RemoveUnselected
     | BlankSlate
     | InsertThumb
     | InsertThumbs
@@ -72,6 +73,7 @@ update msg state =
       )
 
     StartOver -> ( { state | thumbs = (selectThumbs state.original)}, Cmd.none )
+    RemoveUnselected -> ( { state | thumbs = (List.filter (\t -> t.checked) state.thumbs) }, Cmd.none )
     BlankSlate -> ( { state | thumbs = []}, Cmd.none )
 
     SelectToggle -> ( state, Cmd.none )
@@ -120,6 +122,7 @@ view state =
   , div [Attr.id "ctrl"]
     [ button [ onClick StartOver ] [ text "Reset to Original" ]
     , button [ onClick BlankSlate ] [ text "Remove All <<" ]
+    , button [ onClick RemoveUnselected ] [ text "Remove Unselected" ]
     , span [] [ text "hcrop"
       , button [ onClick HCropDecrease ] [ text "--" ]
       , button [ onClick HCropIncrease ] [ text "++" ]
@@ -144,32 +147,35 @@ view state =
     ]
     , div []
       [ h2 [] [ text "Quilt" ]
-      , ul [ Attr.id "thumbs" ] (
-        List.map (\t -> li
-          [ onClick SelectToggle
-          -- , Attr.id ("li" ++ t.id)
-          , Attr.id (t.id)
-          , Attr.class (if state.hovered == t.id then "hovered" else "")
-          ]
-          (if t.selected && state.hovered == t.id then (
-              [ img [ Attr.id t.id, onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []
-              , div [ Attr.id "thumbctrl" ]
-                [ span []
-                  [ span [onTargetedClick InsertLeft] [text "<"]
-                  , span [onTargetedClick ToggleThumb, Attr.class (if t.checked then "chk chky" else "chk chkn")] [text "✔"]
-                  , span [onTargetedClick RemoveThumb] [text "X"]
-                  , span [onTargetedClick InsertRight] [text ">"]
-                  ]
-                ]
-              ]
-            ) else if t.selected then ( [ img [ Attr.id ("img"++t.id), onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []]
-            ) else [])
-          ) state.thumbs
-        )
+      , ul [ Attr.id "thumbs" ] (generateThumbnailLI state)
       ]
     ]
   , Html.node "link" [ Attr.rel "stylesheet", Attr.href "dimedout.css" ] []
   ]
+
+generateThumbnailLI : State -> (List (Html Msg))
+generateThumbnailLI state = List.map (\t -> li
+    [ onClick SelectToggle
+    -- , Attr.id ("li" ++ t.id)
+    , Attr.id (t.id)
+    , Attr.class (if state.hovered == t.id then "hovered" else "")
+    ]
+    (if t.selected && state.hovered == t.id then (
+        [ img [ Attr.id t.id, onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []
+        , div [ Attr.id "thumbctrl" ]
+          [ span []
+            [ span [onTargetedClick InsertLeft] [text "<+"]
+            , span [onTargetedClick ToggleThumb, Attr.class (if t.checked then "chk chky" else "chk chkn")] [text "✔"]
+            , span [onTargetedClick RemoveThumb] [text "X"]
+            , span [onTargetedClick InsertRight] [text "+>"]
+            ]
+          ]
+        ]
+      ) else if t.selected then ( [ img [ Attr.id ("img"++t.id), onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []]
+      ) else [])
+  ) state.thumbs
+
+-- newThumbnailLI : State -> (List (Html Msg))
 
 imgStyle : State -> String
 imgStyle s =
