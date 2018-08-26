@@ -10,8 +10,12 @@ import Html.Attributes as Attr
 import Html.Events exposing (..)
 import Html exposing (..)
 
+import Char exposing (toCode)
+
 import Json.Decode as Json
 import Url.Builder as Url
+
+import Hex
 
 thumbsUrl = "../thumbs.json"
 
@@ -24,24 +28,23 @@ main =
     }
 
 type alias Thumb =
-  { path : String
-  , label : String
-  , selected : Bool -- if we can see the thumbnail
-  , checked : Bool -- if it is checkmarked (for mass deleting)
-  , id : String
+  { id : String -- id derived from path
+  , path : String -- relative url to image
+  , label : String -- displayed in list to left
+  , visible : Bool -- whether this tile appears in the quilt
+  , selected : Bool -- this tile is checkmarked in the quilt
   }
 
 type alias State =
   { thumbs : (List Thumb)
   , hovered : String
-  , original : (List String)
   , hcrop : Int
   , vcrop : Int
   }
 
 init : () -> (State, Cmd Msg)
 init _ =
-  ( State [] "" [] 0 0
+  ( State [] "" 0 0
   , getThumbs thumbsUrl
   )
 
@@ -72,9 +75,9 @@ update msg state =
       , getThumbs thumbsUrl
       )
 
-    StartOver -> ( { state | thumbs = (selectThumbs state.original)}, Cmd.none )
-    RemoveUnselected -> ( { state | thumbs = (List.filter (\t -> t.checked) state.thumbs) }, Cmd.none )
-    BlankSlate -> ( { state | thumbs = []}, Cmd.none )
+    StartOver -> ( { state | thumbs = (List.map (\t -> {t | visible=True}) state.thumbs)}, Cmd.none )
+    RemoveUnselected -> ( { state | thumbs = (List.filter (\t -> t.selected) state.thumbs) }, Cmd.none )
+    BlankSlate -> ( { state | thumbs = (List.map (\t -> {t | visible=False}) state.thumbs)}, Cmd.none )
 
     SelectToggle -> ( state, Cmd.none )
     ShowMenu id ->
@@ -86,7 +89,7 @@ update msg state =
     NewThumbs result ->
       case result of
         Ok newThumbs ->
-          ( { state | original = newThumbs, thumbs = (selectThumbs newThumbs) }
+          ( { state | thumbs = (selectAllThumbs newThumbs) }
           , Cmd.none
           )
 
@@ -108,7 +111,7 @@ update msg state =
       ({state | thumbs = (List.filter (\t -> t.id /= id) state.thumbs) }, Cmd.none)
     ToggleThumb id ->
       let _ = Debug.log "toggle id" id in
-      ({state | thumbs = (List.map (\t -> if t.id == id then {t | checked = (not t.checked)} else t) state.thumbs) }, Cmd.none)
+      ({state | thumbs = (List.map (\t -> if t.id == id then {t | selected = (not t.selected)} else t) state.thumbs) }, Cmd.none)
     InsertRight _ -> (state, Cmd.none)
 
 subscriptions : State -> Sub Msg
@@ -131,17 +134,14 @@ view state =
       , button [ onClick VCropDecrease ] [ text "--" ]
       , button [ onClick VCropIncrease ] [ text "++" ]
       ]
-    , text state.hovered
     ]
   , div [Attr.id "uls"]
     [ div []
       [ h2 [] [ text "Frames" ]
       , ul [ Attr.id "list" ] (
-        -- try this:
-        -- https://github.com/evancz/elm-todomvc/blob/07e3d4e5259f337d5eba781319b3a916e28aca99/src/Main.elm#L242
         List.map (\t -> li
           [ onClick InsertThumb
-          , Attr.class (if t.selected then "sel" else "nosel")
+          , Attr.class ((if t.visible then "visy" else "visn") ++ " " ++ (if t.selected then "sely" else "seln"))
           , Attr.id ("thumb" ++ t.id)] [ text t.label ]) state.thumbs
         )
     ]
@@ -153,28 +153,24 @@ view state =
   , Html.node "link" [ Attr.rel "stylesheet", Attr.href "dimedout.css" ] []
   ]
 
-eventAncestorId : Int -> (List String)
-eventAncestorId n =
-  ["target"] ++ (List.repeat n "parentElement") ++ ["id"]
-
 generateThumbnailLI : State -> (List (Html Msg))
 generateThumbnailLI state = List.map (\t -> li
     [ onClick SelectToggle
     , Attr.id t.id
     , Attr.class (if state.hovered == t.id then "hovered" else "")
     ]
-    (if t.selected && state.hovered == t.id then (
+    (if t.visible && state.hovered == t.id then (
       [ img [ onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []
         , div [ Attr.id "thumbctrl" ]
           [ span []
             [ span [onTargetedClick InsertLeft (eventAncestorId 3)] [text "<+"]
-            , span [onTargetedClick ToggleThumb (eventAncestorId 3), Attr.class (if t.checked then "chk chky" else "chk chkn")] [text "✔"]
+            , span [onTargetedClick ToggleThumb (eventAncestorId 3), Attr.class (if t.selected then "sel sely" else "sel seln")] [text "✔"]
             , span [onTargetedClick RemoveThumb (eventAncestorId 3)] [text "X"]
             , span [onTargetedClick InsertRight (eventAncestorId 3)] [text "+>"]
             ]
           ]
         ]
-        ) else if t.selected then ( [ img [ onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []]
+        ) else if t.visible then ( [ img [ onTargetedMouseOver ShowMenu, Attr.src t.path, Attr.style "margin" (imgStyle state) ] []]
       ) else [])
   ) state.thumbs
 
@@ -192,6 +188,7 @@ thumbDecoder : Json.Decoder (List String)
 thumbDecoder =
   Json.list Json.string
 
+-- filename component of path
 thumbNameFromPath : String -> String
 thumbNameFromPath path =
   case List.head (List.reverse (String.split "/" path)) of
@@ -204,25 +201,27 @@ userReplace userRegex replacer string =
     Nothing -> string
     Just regex -> Regex.replace regex replacer string
 
-makeId : String -> String
-makeId string =
-  userReplace "[^A-Za-z0-9]" (\_ -> "") string
+idFromPath: String -> String
+idFromPath path =
+  "id" ++ String.concat (List.map (\c ->
+    let ord = (toCode c) in
+        if ((ord >= 0x41 && ord <= 0x5A)
+        || (ord >= 0x61 && ord <= 0x7A)
+        || (ord >= 0x30 && ord <= 0x39)) then (String.fromChar c)
+        else ("_" ++ (Hex.toString ord))
+    ) (String.toList path))
 
 newThumb : String -> Thumb
 newThumb path =
-  {label=(thumbNameFromPath path), path=path, selected=True, id=(makeId path), checked=False}
+  {label=(thumbNameFromPath path), path=path, visible=True, id=(idFromPath path), selected=False}
 
-selectThumbs : List String -> List Thumb
-selectThumbs thumbs =
+selectAllThumbs : List String -> List Thumb
+selectAllThumbs thumbs =
   List.map (\t -> newThumb t) thumbs
 
-targetId : Json.Decoder String
-targetId =
-  Json.at (eventAncestorId 0) Json.string
-
-targetParentId : Json.Decoder String
-targetParentId =
-  Json.at (eventAncestorId 1) Json.string
+eventAncestorId : Int -> (List String)
+eventAncestorId n =
+  ["target"] ++ (List.repeat n "parentElement") ++ ["id"]
 
 onTargetedClick : (String -> msg) -> (List String) -> Attribute msg
 onTargetedClick tagger attrs =
@@ -230,5 +229,5 @@ onTargetedClick tagger attrs =
 
 onTargetedMouseOver : (String -> msg) -> Attribute msg
 onTargetedMouseOver tagger =
-  on "mouseover" (Json.map tagger targetParentId)
+  on "mouseover" (Json.map tagger (Json.at (eventAncestorId 1) Json.string))
 

@@ -74,13 +74,13 @@ img {
   cursor: pointer;
 }
 
-#thumbctrl > span > span.chk {
+#thumbctrl > span > span.sel {
   color: #bbbbbb;
 }
 
 h1 > em { margin-left: 0.3em; }
 
-#thumbctrl > span > span.chk.chky {
+#thumbctrl > span > span.sel.sely {
   color: green;
   background-color: lightgreen;
 }
