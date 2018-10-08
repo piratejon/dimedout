@@ -77,7 +77,7 @@ update msg state =
       )
 
     StartOver -> ( { state | thumbs = (List.map (\t -> {t | visible=True}) state.thumbs)}, Cmd.none )
-    RemoveUnselected -> ( { state | thumbs = (List.filter (\t -> t.selected) state.thumbs) }, Cmd.none )
+    RemoveUnselected -> ( { state | thumbs = (List.map (\t -> {t | visible=t.selected}) state.thumbs) }, Cmd.none )
     BlankSlate -> ( { state | thumbs = (List.map (\t -> {t | visible=False}) state.thumbs)}, Cmd.none )
 
     SelectToggle -> ( state, Cmd.none )
@@ -159,6 +159,7 @@ generateThumbnailLI state = List.map (\t -> li
     [ onClick SelectToggle
     , Attr.id t.id
     , Attr.class (if state.hovered == t.id then "hovered" else "")
+    , Attr.class (if t.selected then "selected" else "")
     ]
     (if t.visible && state.hovered == t.id then (
       [ img [ onEvent "mouseover" ShowMenu (eventAncestorId 1), Attr.src t.path, Attr.style "margin" (imgStyle state) ] []

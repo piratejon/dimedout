@@ -35,6 +35,14 @@ ul#thumbs {
 ul#thumbs > li {
   overflow: hidden;
   position: relative;
+  padding: 2px;
+  margin: -2px;
+}
+
+ul#thumbs > li.selected {
+  padding: 0;
+  border: 2px solid green;
+  z-index: 999;
 }
 
 img {
