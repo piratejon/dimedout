@@ -29,6 +29,7 @@ main =
 
 type alias Thumb =
   { id : String -- id derived from path
+  , seq: Int -- zero-indexed sequence number
   , path : String -- relative url to image
   , label : String -- displayed in list to left
   , visible : Bool -- whether this tile appears in the quilt
@@ -65,9 +66,14 @@ type Msg
     | InsertLeft String
     | RemoveSelf String
     | ToggleSelf String
-    | Restore String
-    | Remove String
+    | Restore NeighborDirectionType String
+    | Remove NeighborDirectionType String
     | NewThumbs (Result Http.Error (List String))
+
+type NeighborDirectionType
+  = Self
+  | Left
+  | Right
 
 update : Msg -> State -> (State, Cmd Msg)
 update msg state =
@@ -108,14 +114,19 @@ update msg state =
     VCropDecrease -> ( { state | vcrop = state.vcrop - 1 }, Cmd.none)
 
     InsertLeft _ -> (state, Cmd.none)
-    RemoveSelf id ->
-      let _ = Debug.log "remove id" id in
-      ({state | thumbs = (List.map (\t -> if t.id == id then {t | visible = False} else t) state.thumbs) }, Cmd.none)
     ToggleSelf id ->
       let _ = Debug.log "toggle id" id in
       ({state | thumbs = (List.map (\t -> if t.id == id then {t | selected = (not t.selected)} else t) state.thumbs) }, Cmd.none)
-    Restore _ -> (state, Cmd.none)
-    Remove _ -> (state, Cmd.none)
+    RemoveSelf id ->
+      let _ = Debug.log "remove id" id in
+      ({state | thumbs = (List.map (\t -> if t.id == id then {t | visible = False} else t) state.thumbs) }, Cmd.none)
+    Restore _ _ -> (state, Cmd.none)
+    Remove neighbor id ->
+      -- let _ = Debug.log "remove neighbor " neighbor " id " id in
+      let _ = Debug.log "remove id" id in
+      case neighbor of
+        Self -> ({state | thumbs = (List.map (\t -> if t.id == id then {t | visible = False} else t) state.thumbs) }, Cmd.none)
+        _ -> (state, Cmd.none)
 
 subscriptions : State -> Sub Msg
 subscriptions state =
@@ -168,14 +179,14 @@ generateThumbnailLI state = List.map (\t -> li
         , div [ Attr.id "thumbctrl" ]
           [ span []
             [ span [Attr.class "right neighbor"]
-              [ span [onEvent "click" Restore (eventAncestorId 4), Attr.title "Remove left neighbor"] [text "<+"]
-              , span [onEvent "click" Remove (eventAncestorId 4), Attr.title "Restore left neighbor"] [text "<x"]
+              [ span [onEvent "click" (Restore Left) (eventAncestorId 4), Attr.title "Remove left neighbor"] [text "<+"]
+              , span [onEvent "click" (Remove Left) (eventAncestorId 4), Attr.title "Restore left neighbor"] [text "<x"]
               ]
             , span [onEvent "click" ToggleSelf (eventAncestorId 3), Attr.title "Select this square", Attr.class (if t.selected then "sel sely" else "sel seln")] [text "✔"]
-            , span [onEvent "click" RemoveSelf (eventAncestorId 3), Attr.title "Remove this square"] [text "X"]
+            , span [onEvent "click" (Remove Self) (eventAncestorId 3), Attr.title "Remove this square"] [text "X"]
             , span [Attr.class "right neighbor"]
-              [ span [onEvent "click" Restore (eventAncestorId 4), Attr.title "Remove right neighbor"] [text "+>"]
-              , span [onEvent "click" Remove (eventAncestorId 4), Attr.title "Restore right neighbor"] [text "x>"]
+              [ span [onEvent "click" (Restore Right) (eventAncestorId 4), Attr.title "Remove right neighbor"] [text "+>"]
+              , span [onEvent "click" (Remove Right) (eventAncestorId 4), Attr.title "Restore right neighbor"] [text "x>"]
               ]
             ]
           ]
@@ -219,13 +230,13 @@ idFromPath path =
         else ("_" ++ (Hex.toString ord))
     ) (String.toList path))
 
-newThumb : String -> Thumb
-newThumb path =
-  {label=(thumbNameFromPath path), path=path, visible=True, id=(idFromPath path), selected=False}
+newThumb : Int -> String -> Thumb
+newThumb seq path =
+  {label=(thumbNameFromPath path), path=path, visible=True, id=(idFromPath path), seq=seq, selected=False}
 
 selectAllThumbs : List String -> List Thumb
 selectAllThumbs thumbs =
-  List.map (\t -> newThumb t) thumbs
+  List.indexedMap (\t -> newThumb t) thumbs
 
 eventAncestorId : Int -> (List String)
 eventAncestorId n =
