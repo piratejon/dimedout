@@ -63,9 +63,10 @@ type Msg
     | VCropIncrease
     | VCropDecrease
     | InsertLeft String
-    | RemoveThumb String
-    | ToggleThumb String
-    | InsertRight String
+    | RemoveSelf String
+    | ToggleSelf String
+    | Restore String
+    | Remove String
     | NewThumbs (Result Http.Error (List String))
 
 update : Msg -> State -> (State, Cmd Msg)
@@ -107,13 +108,14 @@ update msg state =
     VCropDecrease -> ( { state | vcrop = state.vcrop - 1 }, Cmd.none)
 
     InsertLeft _ -> (state, Cmd.none)
-    RemoveThumb id ->
+    RemoveSelf id ->
       let _ = Debug.log "remove id" id in
       ({state | thumbs = (List.map (\t -> if t.id == id then {t | visible = False} else t) state.thumbs) }, Cmd.none)
-    ToggleThumb id ->
+    ToggleSelf id ->
       let _ = Debug.log "toggle id" id in
       ({state | thumbs = (List.map (\t -> if t.id == id then {t | selected = (not t.selected)} else t) state.thumbs) }, Cmd.none)
-    InsertRight _ -> (state, Cmd.none)
+    Restore _ -> (state, Cmd.none)
+    Remove _ -> (state, Cmd.none)
 
 subscriptions : State -> Sub Msg
 subscriptions state =
@@ -165,18 +167,22 @@ generateThumbnailLI state = List.map (\t -> li
       [ img [ onEvent "mouseover" ShowMenu (eventAncestorId 1), Attr.src t.path, Attr.style "margin" (imgStyle state) ] []
         , div [ Attr.id "thumbctrl" ]
           [ span []
-            [ span [onEvent "click" InsertLeft (eventAncestorId 3)] [text "<+"]
-            , span [onEvent "click" ToggleThumb (eventAncestorId 3), Attr.class (if t.selected then "sel sely" else "sel seln")] [text "✔"]
-            , span [onEvent "click" RemoveThumb (eventAncestorId 3)] [text "X"]
-            , span [onEvent "click" InsertRight (eventAncestorId 3)] [text "+>"]
+            [ span [Attr.class "right neighbor"]
+              [ span [onEvent "click" Restore (eventAncestorId 4), Attr.title "Remove left neighbor"] [text "<+"]
+              , span [onEvent "click" Remove (eventAncestorId 4), Attr.title "Restore left neighbor"] [text "<x"]
+              ]
+            , span [onEvent "click" ToggleSelf (eventAncestorId 3), Attr.title "Select this square", Attr.class (if t.selected then "sel sely" else "sel seln")] [text "✔"]
+            , span [onEvent "click" RemoveSelf (eventAncestorId 3), Attr.title "Remove this square"] [text "X"]
+            , span [Attr.class "right neighbor"]
+              [ span [onEvent "click" Restore (eventAncestorId 4), Attr.title "Remove right neighbor"] [text "+>"]
+              , span [onEvent "click" Remove (eventAncestorId 4), Attr.title "Restore right neighbor"] [text "x>"]
+              ]
             ]
           ]
         ]
         ) else if t.visible then ( [ img [ onEvent "mouseover" ShowMenu (eventAncestorId 1), Attr.src t.path, Attr.style "margin" (imgStyle state) ] []]
       ) else [])
   ) state.thumbs
-
--- newThumbnailLI : State -> (List (Html Msg))
 
 imgStyle : State -> String
 imgStyle s =
