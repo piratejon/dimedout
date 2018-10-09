@@ -35,6 +35,7 @@ ul#thumbs {
 ul#thumbs > li {
   overflow: hidden;
   position: relative;
+  /* padding and margin so the selected border does not appear to move the element */
   padding: 2px;
   margin: -2px;
 }
@@ -42,11 +43,16 @@ ul#thumbs > li {
 ul#thumbs > li.selected {
   padding: 0;
   border: 2px solid green;
-  z-index: 999;
+  z-index: 999; /* make sure the border shows above neighbors */
 }
 
 img {
   display: block;
+}
+
+ul#thumbs > li.selected > #thumbctrl {
+  /* don't move when we're selected */
+  margin: -2px;
 }
 
 #thumbctrl {
