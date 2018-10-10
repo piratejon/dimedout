@@ -123,10 +123,11 @@ update msg state =
     Restore _ _ -> (state, Cmd.none)
     Remove neighbor id ->
       -- let _ = Debug.log "remove neighbor " neighbor " id " id in
-      let _ = Debug.log "remove id" id in
+      let _ = Debug.log "remove neighbor from" id in
       case neighbor of
-        Self -> ({state | thumbs = (List.map (\t -> if t.id == id then {t | visible = False} else t) state.thumbs) }, Cmd.none)
-        _ -> (state, Cmd.none)
+        Self -> ({state | thumbs = (List.map (\t -> if t.id == id then {t | visible = False, selected = False} else t) state.thumbs) }, Cmd.none)
+        Left -> ({state | thumbs = (hideNeighborsUntilSelected (<) state.thumbs id)}, Cmd.none)
+        Right -> ({state | thumbs = (hideNeighborsUntilSelected (>) state.thumbs id)}, Cmd.none)
 
 subscriptions : State -> Sub Msg
 subscriptions state =
@@ -179,14 +180,14 @@ generateThumbnailLI state = List.map (\t -> li
         , div [ Attr.id "thumbctrl" ]
           [ span []
             [ span [Attr.class "right neighbor"]
-              [ span [onEvent "click" (Restore Left) (eventAncestorId 4), Attr.title "Remove left neighbor"] [text "<+"]
-              , span [onEvent "click" (Remove Left) (eventAncestorId 4), Attr.title "Restore left neighbor"] [text "<x"]
+              [ span [onEvent "click" (Restore Left) (eventAncestorId 4), Attr.title "Restore left neighbors"] [text "<+"]
+              , span [onEvent "click" (Remove Left) (eventAncestorId 4), Attr.title "Remove left neighbors"] [text "<x"]
               ]
             , span [onEvent "click" ToggleSelf (eventAncestorId 3), Attr.title "Select this square", Attr.class (if t.selected then "sel sely" else "sel seln")] [text "✔"]
             , span [onEvent "click" (Remove Self) (eventAncestorId 3), Attr.title "Remove this square"] [text "X"]
             , span [Attr.class "right neighbor"]
-              [ span [onEvent "click" (Restore Right) (eventAncestorId 4), Attr.title "Remove right neighbor"] [text "+>"]
-              , span [onEvent "click" (Remove Right) (eventAncestorId 4), Attr.title "Restore right neighbor"] [text "x>"]
+              [ span [onEvent "click" (Restore Right) (eventAncestorId 4), Attr.title "Restore right neighbors"] [text "+>"]
+              , span [onEvent "click" (Remove Right) (eventAncestorId 4), Attr.title "Remove right neighbors"] [text "x>"]
               ]
             ]
           ]
@@ -246,3 +247,32 @@ onEvent : String -> (String -> msg) -> (List String) -> Attribute msg
 onEvent event tagger attrs =
   on event (Json.map tagger (Json.at attrs Json.string))
 
+thumbById : (List Thumb) -> String -> Maybe Thumb
+thumbById thumbs id =
+  List.head (List.filter (\t -> t.id == id) thumbs)
+
+findNextSelected : (Int -> Int -> Bool) -> (List Thumb) -> Thumb -> Maybe Thumb
+findNextSelected cmp thumbs thumb =
+  List.head (List.reverse (List.filter (\t -> (&&) (cmp t.seq thumb.seq) t.selected) thumbs))
+
+hideThumbsMap : (Thumb -> Bool) -> (List Thumb) -> (List Thumb)
+hideThumbsMap cond thumbs =
+  List.map (\t -> {t | visible = (&&) (cond t) t.visible}) thumbs
+
+hideNeighborsUntilSelected : (Int -> Int -> Bool) -> (List Thumb) -> String -> (List Thumb)
+hideNeighborsUntilSelected cmp thumbs id =
+  case (thumbById thumbs id) of
+    Just a ->
+      let _ = Debug.log "found thumb with id" a.id in
+      case (findNextSelected cmp thumbs a) of
+        Just b ->
+          let _ = Debug.log "found neighbor with id" b.id in
+          thumbs
+          -- hideThumbsMap (\t -> (&&) (not t.selected) ((&&) (cmp a.seq t.seq) (cmp t.seq b.seq))) thumbs
+        Nothing -> -- no selected neighbor in that direction so run to the end
+          let _ = Debug.log "found no neighbor in that direction" "uhoh" in
+          thumbs
+          -- hideThumbsMap (\t -> (&&) (not t.selected) (cmp a.seq t.seq)) thumbs
+    Nothing -> -- how can this be?
+      let _ = Debug.log "wat" "wat" in
+      thumbs
