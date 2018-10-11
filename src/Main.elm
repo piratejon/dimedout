@@ -155,9 +155,10 @@ view state =
       [ h2 [] [ text "Frames" ]
       , ul [ Attr.id "list" ] (
         List.map (\t -> li
-          [ onClick InsertThumb
-          , Attr.class ((if t.visible then "visy" else "visn") ++ " " ++ (if t.selected then "sely" else "seln"))
-          , Attr.id ("thumb" ++ t.id)] [ text t.label ]) state.thumbs
+          [
+          Attr.class ((if t.visible then "visy" else "visn") ++ " " ++ (if t.selected then "sely" else "seln"))
+          , Attr.id ("thumb" ++ t.id)
+          ] [ text t.label ]) state.thumbs
         )
     ]
     , div []
@@ -174,6 +175,7 @@ generateThumbnailLI state = List.map (\t -> li
     , Attr.id t.id
     , Attr.class (if state.hovered == t.id then "hovered" else "")
     , Attr.class (if t.selected then "selected" else "")
+    , Attr.class (if t.visible then "visy" else "visn")
     ]
     (if t.visible && state.hovered == t.id then (
       [ img [ onEvent "mouseover" ShowMenu (eventAncestorId 1), Attr.src t.path, Attr.style "margin" (imgStyle state) ] []
@@ -251,9 +253,9 @@ thumbById : (List Thumb) -> String -> Maybe Thumb
 thumbById thumbs id =
   List.head (List.filter (\t -> t.id == id) thumbs)
 
-findNextSelected : (Int -> Int -> Bool) -> (List Thumb) -> Thumb -> Maybe Thumb
-findNextSelected cmp thumbs thumb =
-  List.head (List.reverse (List.filter (\t -> (&&) (cmp t.seq thumb.seq) t.selected) thumbs))
+findNextSelected : (Thumb -> Bool) -> (List Thumb) -> Maybe Thumb
+findNextSelected cond thumbs =
+  List.head (List.reverse (List.filter (\t -> (&&) (cond t) t.selected) thumbs))
 
 hideThumbsMap : (Thumb -> Bool) -> (List Thumb) -> (List Thumb)
 hideThumbsMap cond thumbs =
@@ -264,15 +266,14 @@ hideNeighborsUntilSelected cmp thumbs id =
   case (thumbById thumbs id) of
     Just a ->
       let _ = Debug.log "found thumb with id" a.id in
-      case (findNextSelected cmp thumbs a) of
+      case (findNextSelected (\t -> (cmp t.seq a.seq)) thumbs) of
         Just b ->
           let _ = Debug.log "found neighbor with id" b.id in
-          thumbs
-          -- hideThumbsMap (\t -> (&&) (not t.selected) ((&&) (cmp a.seq t.seq) (cmp t.seq b.seq))) thumbs
+          hideThumbsMap (\t -> (&&) (not t.selected) (not ((&&) (cmp t.seq a.seq) (cmp b.seq t.seq)))) thumbs
         Nothing -> -- no selected neighbor in that direction so run to the end
           let _ = Debug.log "found no neighbor in that direction" "uhoh" in
-          thumbs
-          -- hideThumbsMap (\t -> (&&) (not t.selected) (cmp a.seq t.seq)) thumbs
+          -- hideThumbsMap (\t -> (&&) (not t.selected) (not (cmp t.seq a.seq))) thumbs
+          hideThumbsMap (\t -> (not t.selected && not (cmp t.seq a.seq))) thumbs
     Nothing -> -- how can this be?
       let _ = Debug.log "wat" "wat" in
       thumbs

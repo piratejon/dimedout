@@ -46,6 +46,10 @@ ul#thumbs > li.selected {
   z-index: 999;
 }
 
+ul#thumbs > li.visn {
+  display: none;
+}
+
 ul#thumbs > li > img {
   display: block;
 }
@@ -115,4 +119,3 @@ h1 > em { margin-left: 0.3em; }
   color: green;
   background-color: lightgreen;
 }
-
