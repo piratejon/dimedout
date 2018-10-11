@@ -64,10 +64,8 @@ type Msg
     | VCropIncrease
     | VCropDecrease
     | InsertLeft String
-    | RemoveSelf String
     | ToggleSelf String
-    | Restore NeighborDirectionType String
-    | Remove NeighborDirectionType String
+    | ShowNeighbors Bool NeighborDirectionType String
     | NewThumbs (Result Http.Error (List String))
 
 type NeighborDirectionType
@@ -117,17 +115,12 @@ update msg state =
     ToggleSelf id ->
       let _ = Debug.log "toggle id" id in
       ({state | thumbs = (List.map (\t -> if t.id == id then {t | selected = (not t.selected)} else t) state.thumbs) }, Cmd.none)
-    RemoveSelf id ->
-      let _ = Debug.log "remove id" id in
-      ({state | thumbs = (List.map (\t -> if t.id == id then {t | visible = False} else t) state.thumbs) }, Cmd.none)
-    Restore _ _ -> (state, Cmd.none)
-    Remove neighbor id ->
+    ShowNeighbors showOrHide neighbor id ->
       -- let _ = Debug.log "remove neighbor " neighbor " id " id in
       let _ = Debug.log "remove neighbor from" id in
       case neighbor of
         Self -> ({state | thumbs = (List.map (\t -> if t.id == id then {t | visible = False, selected = False} else t) state.thumbs) }, Cmd.none)
-        Left -> ({state | thumbs = (hideNeighborsUntilSelected (<) state.thumbs id)}, Cmd.none)
-        Right -> ({state | thumbs = (hideNeighborsUntilSelected (>) state.thumbs id)}, Cmd.none)
+        _ -> ({state | thumbs = (showNeighborsUntilSelected showOrHide (if neighbor == Left then (<) else (>)) state.thumbs id)}, Cmd.none)
 
 subscriptions : State -> Sub Msg
 subscriptions state =
@@ -182,14 +175,14 @@ generateThumbnailLI state = List.map (\t -> li
         , div [ Attr.id "thumbctrl" ]
           [ span []
             [ span [Attr.class "right neighbor"]
-              [ span [onEvent "click" (Restore Left) (eventAncestorId 4), Attr.title "Restore left neighbors"] [text "<+"]
-              , span [onEvent "click" (Remove Left) (eventAncestorId 4), Attr.title "Remove left neighbors"] [text "<x"]
+              [ span [onEvent "click" (ShowNeighbors True Left) (eventAncestorId 4), Attr.title "Restore left neighbors"] [text "<+"]
+              , span [onEvent "click" (ShowNeighbors False Left) (eventAncestorId 4), Attr.title "Remove left neighbors"] [text "<x"]
               ]
             , span [onEvent "click" ToggleSelf (eventAncestorId 3), Attr.title "Select this square", Attr.class (if t.selected then "sel sely" else "sel seln")] [text "✔"]
-            , span [onEvent "click" (Remove Self) (eventAncestorId 3), Attr.title "Remove this square"] [text "X"]
+            , span [onEvent "click" (ShowNeighbors False Self) (eventAncestorId 3), Attr.title "Remove this square"] [text "X"]
             , span [Attr.class "right neighbor"]
-              [ span [onEvent "click" (Restore Right) (eventAncestorId 4), Attr.title "Restore right neighbors"] [text "+>"]
-              , span [onEvent "click" (Remove Right) (eventAncestorId 4), Attr.title "Remove right neighbors"] [text "x>"]
+              [ span [onEvent "click" (ShowNeighbors True Right) (eventAncestorId 4), Attr.title "Restore right neighbors"] [text "+>"]
+              , span [onEvent "click" (ShowNeighbors False Right) (eventAncestorId 4), Attr.title "Remove right neighbors"] [text "x>"]
               ]
             ]
           ]
@@ -257,23 +250,22 @@ findNextSelected : (Thumb -> Bool) -> (List Thumb) -> Maybe Thumb
 findNextSelected cond thumbs =
   List.head (List.reverse (List.filter (\t -> (&&) (cond t) t.selected) thumbs))
 
-hideThumbsMap : (Thumb -> Bool) -> (List Thumb) -> (List Thumb)
-hideThumbsMap cond thumbs =
-  List.map (\t -> {t | visible = (&&) (cond t) t.visible}) thumbs
+hideThumbsMap : Bool -> (Thumb -> Bool) -> (List Thumb) -> (List Thumb)
+hideThumbsMap showOrHide cond thumbs =
+  List.map (\t -> {t | visible = (||) showOrHide ((&&) (not (cond t)) t.visible)}) thumbs
 
-hideNeighborsUntilSelected : (Int -> Int -> Bool) -> (List Thumb) -> String -> (List Thumb)
-hideNeighborsUntilSelected cmp thumbs id =
+showNeighborsUntilSelected : Bool -> (Int -> Int -> Bool) -> (List Thumb) -> String -> (List Thumb)
+showNeighborsUntilSelected showOrHide cmp thumbs id =
   case (thumbById thumbs id) of
     Just a ->
       let _ = Debug.log "found thumb with id" a.id in
       case (findNextSelected (\t -> (cmp t.seq a.seq)) thumbs) of
         Just b ->
           let _ = Debug.log "found neighbor with id" b.id in
-          hideThumbsMap (\t -> (&&) (not t.selected) (not ((&&) (cmp t.seq a.seq) (cmp b.seq t.seq)))) thumbs
+          hideThumbsMap showOrHide (\t -> (&&) (not t.selected) ((&&) (cmp t.seq a.seq) (cmp b.seq t.seq))) thumbs
         Nothing -> -- no selected neighbor in that direction so run to the end
-          let _ = Debug.log "found no neighbor in that direction" "uhoh" in
-          -- hideThumbsMap (\t -> (&&) (not t.selected) (not (cmp t.seq a.seq))) thumbs
-          hideThumbsMap (\t -> (not t.selected && not (cmp t.seq a.seq))) thumbs
+          let _ = Debug.log "found no neighbor in that direction" a.id in
+          hideThumbsMap showOrHide (\t -> (&&) (not t.selected) (cmp t.seq a.seq)) thumbs
     Nothing -> -- how can this be?
-      let _ = Debug.log "wat" "wat" in
+      let _ = Debug.log "failed to find thumb by id" id in
       thumbs
