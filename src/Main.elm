@@ -252,7 +252,7 @@ findNextSelected cond thumbs =
 
 hideThumbsMap : Bool -> (Thumb -> Bool) -> (List Thumb) -> (List Thumb)
 hideThumbsMap showOrHide cond thumbs =
-  List.map (\t -> {t | visible = (||) showOrHide ((&&) (not (cond t)) t.visible)}) thumbs
+  List.map (\t -> {t | visible = (||) ((&&) (cond t) showOrHide) ((&&) (not (cond t)) t.visible)}) thumbs
 
 showNeighborsUntilSelected : Bool -> (Int -> Int -> Bool) -> (List Thumb) -> String -> (List Thumb)
 showNeighborsUntilSelected showOrHide cmp thumbs id =
