@@ -12,8 +12,10 @@ import Html exposing (..)
 
 import Char exposing (toCode)
 
-import Json.Decode as Json
-import Url.Builder as Url
+import Json.Decode as JsonD
+import Json.Encode as JsonE
+import Url.Builder as UrlB
+import Url
 
 import Hex
 
@@ -54,8 +56,6 @@ type Msg
     | StartOver
     | RemoveUnselected
     | BlankSlate
-    | InsertThumb
-    | InsertThumbs
     | SelectToggle
     | ShowMenu String
     -- | HideMenu String
@@ -67,6 +67,7 @@ type Msg
     | ToggleSelf String
     | ShowNeighbors Bool NeighborDirectionType String
     | NewThumbs (Result Http.Error (List String))
+    | DumpState
 
 type NeighborDirectionType
   = Self
@@ -89,8 +90,8 @@ update msg state =
     ShowMenu id ->
       -- let _ = Debug.log "show id" id in
       ( { state | hovered = id }, Cmd.none )
-    InsertThumb -> ( state , Cmd.none )
-    InsertThumbs -> ( state , Cmd.none )
+
+    DumpState -> ( state, Cmd.none )
 
     NewThumbs result ->
       case result of
@@ -142,6 +143,11 @@ view state =
       , button [ onClick VCropDecrease ] [ text "--" ]
       , button [ onClick VCropIncrease ] [ text "++" ]
       ]
+    , a [ Attr.id "savebutton"
+        , Attr.class "link_as_button"
+        , Attr.href ("data:application/json," ++ (Url.percentEncode (JsonE.encode 2 (encodeState state))))
+        , Attr.download "quilt.json"
+        ] [ text "Save" ]
     ]
   , div [Attr.id "uls"]
     [ div []
@@ -197,11 +203,11 @@ imgStyle s =
 
 getThumbs : String -> Cmd Msg
 getThumbs file =
-  Http.send NewThumbs (Http.get (Url.relative [ file ] []) thumbDecoder)
+  Http.send NewThumbs (Http.get (UrlB.relative [ file ] []) thumbDecoder)
 
-thumbDecoder : Json.Decoder (List String)
+thumbDecoder : JsonD.Decoder (List String)
 thumbDecoder =
-  Json.list Json.string
+  JsonD.list JsonD.string
 
 -- filename component of path
 thumbNameFromPath : String -> String
@@ -240,7 +246,7 @@ eventAncestorId n =
 
 onEvent : String -> (String -> msg) -> (List String) -> Attribute msg
 onEvent event tagger attrs =
-  on event (Json.map tagger (Json.at attrs Json.string))
+  on event (JsonD.map tagger (JsonD.at attrs JsonD.string))
 
 thumbById : (List Thumb) -> String -> Maybe Thumb
 thumbById thumbs id =
@@ -269,3 +275,22 @@ showNeighborsUntilSelected showOrHide cmp thumbs id =
     Nothing -> -- how can this be?
       let _ = Debug.log "failed to find thumb by id" id in
       thumbs
+
+encodeThumb : Thumb -> JsonE.Value
+encodeThumb thumb =
+  JsonE.object
+    [ ("id", JsonE.string thumb.id)
+    , ("seq", JsonE.int thumb.seq)
+    , ("path", JsonE.string thumb.path)
+    , ("label", JsonE.string thumb.label)
+    , ("visible", JsonE.bool thumb.visible)
+    , ("selected", JsonE.bool thumb.selected)
+    ]
+
+encodeState : State -> JsonE.Value
+encodeState state =
+  JsonE.object
+    [ ("thumbs", (JsonE.list encodeThumb state.thumbs))
+    , ("hcrop", JsonE.int state.hcrop)
+    , ("vcrop", JsonE.int state.vcrop)
+    ]
